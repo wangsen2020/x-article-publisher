@@ -1,0 +1,29 @@
+{
+  "name": "x-article-publisher",
+  "version": "1.0.0",
+  "description": "Zero-cost, fully automated X (Twitter) Article and long-form publisher via Chrome DevTools Protocol (CDP).",
+  "type": "module",
+  "main": "scripts/publish-article.mjs",
+  "bin": {
+    "x-publish": "scripts/publish-article.mjs"
+  },
+  "scripts": {
+    "test": "node scripts/publish-article.mjs --help"
+  },
+  "keywords": [
+    "twitter",
+    "x-articles",
+    "cdp",
+    "chrome-devtools-protocol",
+    "automation",
+    "headless",
+    "agent-skill",
+    "antigravity",
+    "codex"
+  ],
+  "author": "wangsen2020",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
