@@ -28,32 +28,47 @@
 - 🖼️ **5:2 高清海报自动适配**：原生支持 X Articles 推荐的 **5:2** 比例封面图，并通过 CDP 物理点击自动穿透“编辑媒体 / 应用”弹窗；
 - 📝 **Draft.js 原生剪贴板富文本注入**：突破 React 受控组件与 Draft.js 的防篡改机制，通过模拟 `ClipboardEvent('paste')` 无损注入 HTML 结构；
 - 🛡️ **严格防抖保存监听**：智能检测后台 `正在保存...` 状态流，确保 Draft.js 完成云端持久化后再触发发布，避免发布白卷；
-- ⚠️ **标题字数智能安全防御**：X Articles 限制标题严格小于 100 字符（实测推荐 ≤ 80~90 字符）。脚本内置长度自检与安全截断兜底，彻底杜绝按钮置灰无法发布的坑点；
+- ♻️ **智能草稿复用**：进入文章专栏时优先复用未发布的现有草稿，避免重复生成大量垃圾空白草稿；
+- 📸 **卡顿自动视觉截图诊断**：流程发生超时或按钮禁用时，自动触发 CDP `Page.captureScreenshot` 抓取实机视觉画面，彻底告别盲猜；
+- ⚠️ **平台字数双重安全防御**：
+  - 主标题严格 ≤ 100 字符（代码内置 ≤ 90 字符安全截断）；
+  - 弹窗说明文字 (Caption) 严格 ≤ 256 字符（代码内置 ≤ 250 字符安全截断）；
 - 🤖 **标准化 Agent Skill 设计**：自带 `SKILL.md`，可无缝插拔接入 Antigravity、Codex、Claude Desktop 等现代 AI 编码助手。
 
 ---
 
 ## 📸 实战案例与避坑指南 (Real-world Pitfalls & Showcase)
 
-### 1. 真实发布案例 (Live Example)
+### 1. 真实发布案例 (Live Examples)
 由本工具全自动排版并发布的真实案例推文：
-👉 **[点击查看线上真实推文效果：解救被困在手机里的 WhatsApp 记录](https://x.com/WatsonTaylor23/status/2114642635419980167)**
+- 🇨🇳 中文专栏：👉 **[解救被困在手机里的 WhatsApp 记录](https://x.com/WatsonTaylor23/status/2114642635419980167)**
+- 🇬🇧 英文专栏：👉 **[The Illusion of Data Ownership: Reclaiming Your WhatsApp Chats](https://x.com/WatsonTaylor23/status/2114655202594714007)**
 
 ![Example Cover](assets/example-cover-5x2.png)
 
 ---
 
-### 2. 经典大坑：标题字数超限导致“发布”按钮静默禁用
+### 2. 经典大坑 A：标题字数超限导致“发布”按钮静默禁用
 在 X Articles 中，如果标题长度超过平台限制，右侧的“发布”按钮将直接被禁用（`disabled: true`），悬停时才会提示：  
 > *“你的标题已超出字符数限制。请把它缩短一点，然后再发布。”*
 
 ![Title Limit Warning](assets/title-limit-warning.png)
 
-**解决方案**：本工具已内置自动检查，超过 90 字符时会自动记录警告并进行安全截断，防止自动化流程卡死。
+**解决方案**：本工具内置自动检查，超过 90 字符时自动发出警告并安全截断，防止发布按钮被平台禁用。
 
 ---
 
-### 3. React 模态弹窗与物理点击穿透
+### 3. 经典大坑 B：说明文字 (Caption) 超出 256 字符上限
+在发布确认弹窗中，“为你的文章添加说明文字”字段具有严格的 **256 字符上限**。若文案稍长（例如 333 字符），弹窗内的最终发布按钮将保持禁用，并提示红字：  
+> *“为你的文章添加说明文字 333 / 256 · 你的帖子文本过长。”*
+
+![Caption Limit Warning](assets/caption-limit-warning.png)
+
+**解决方案**：本工具已内置 Caption 长度自检，超过 250 字符自动安全截断，保障最终发帖百分之百成功。
+
+---
+
+### 4. React 模态弹窗与物理点击穿透
 上传封面海报后，X 会弹出带有 `data-testid="applyButton"` 的微调确认弹窗。常规的 DOM `button.click()` 会被 React 内部的合成事件拦截，导致弹窗一直遮罩在前面。  
 **解决方案**：本工具通过 CDP `Input.dispatchMouseEvent` 计算控件中心像素坐标并模拟真实硬件级的 `mouseMoved -> mousePressed -> mouseReleased` 序列，实现 100% 成功穿透。
 

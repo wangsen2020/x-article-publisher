@@ -41,7 +41,14 @@ if (title.length > 90) {
   console.warn(`[x-publisher] Automatically truncating title to safe length: "${truncated}"`);
   title = truncated;
 }
-const caption = params.caption ? params.caption.trim() : '';
+let caption = params.caption ? params.caption.trim() : '';
+// X.com Articles publish dialog caption strict limit is 256 characters!
+if (caption.length > 250) {
+  console.warn(`[x-publisher] Warning: Caption length (${caption.length}) exceeds 250 chars! X limits caption <= 256.`);
+  const truncated = caption.slice(0, 245) + '...';
+  console.warn(`[x-publisher] Automatically truncating caption to: "${truncated}"`);
+  caption = truncated;
+}
 const coverPath = params.cover ? path.resolve(params.cover) : null;
 const inlineImagePath = params.inlineImage ? path.resolve(params.inlineImage) : null;
 
@@ -117,15 +124,37 @@ pageWs.addEventListener('message', (evt) => {
 });
 
 try {
-  // Step 1: Click "create" / "撰写"
-  await sendPage("Runtime.evaluate", {
+  async function takeDebugScreenshot(filename = 'debug-snapshot.png') {
+    try {
+      const shot = await sendPage("Page.captureScreenshot", { format: "png" });
+      fs.writeFileSync(filename, Buffer.from(shot.data, 'base64'));
+      console.log(`[x-publisher] 📸 Auto-captured visual screenshot saved to ${filename}`);
+    } catch {}
+  }
+
+  // Step 1: Reuse existing draft or click create
+  const draftState = await sendPage("Runtime.evaluate", {
     expression: `(() => {
-      const createBtn = document.querySelector('[aria-label="create"]') || document.querySelector('[data-testid="empty_state_button_text"]');
-      if (createBtn) createBtn.click();
+      if (document.querySelector('[data-testid="composer"].public-DraftEditor-content')) {
+        return { action: 'already_in_editor' };
+      }
+      const firstDraft = document.querySelector('[data-testid="article_draft_row"]');
+      if (firstDraft) {
+        firstDraft.click();
+        return { action: 'reused_existing_draft' };
+      }
+      const createBtn = document.querySelector('[aria-label="create"]') ||
+        document.querySelector('[data-testid="empty_state_button_text"]');
+      if (createBtn) {
+        createBtn.click();
+        return { action: 'created_new_draft' };
+      }
+      return { action: 'no_draft_or_create_found' };
     })()`,
     returnByValue: true
   });
-  await new Promise(r => setTimeout(r, 4500));
+  console.log(`[x-publisher] Draft strategy:`, draftState.result.value);
+  await new Promise(r => setTimeout(r, 4000));
 
   async function clickElementCenter(selector) {
     const rectRes = await sendPage("Runtime.evaluate", {
@@ -309,22 +338,34 @@ try {
     returnByValue: true
   });
   console.log(`[x-publisher] Publish button ready state:`, waitState.result.value);
+  if (!waitState.result.value?.ready) {
+    await takeDebugScreenshot('error-save-timeout.png');
+  }
 
-  // Step 6: Click Initial "发布" / "Publish"
-  await sendPage("Runtime.evaluate", {
+  // Step 6: Click Initial "发布" / "Publish" via CDP physical mouse
+  const pubBtnCoord = await sendPage("Runtime.evaluate", {
     expression: `(() => {
-      const publishBtn = Array.from(document.querySelectorAll('button, [role="button"]')).find(b => {
+      const btn = Array.from(document.querySelectorAll('button, [role="button"]')).find(b => {
         const t = (b.innerText || b.textContent || '').trim();
         return t === '发布' || t === 'Publish';
       });
-      if (publishBtn) publishBtn.click();
+      if (!btn) return null;
+      const r = btn.getBoundingClientRect();
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
     })()`,
     returnByValue: true
   });
-  await new Promise(r => setTimeout(r, 2000));
+  if (pubBtnCoord.result.value) {
+    const { x, y } = pubBtnCoord.result.value;
+    await sendPage("Input.dispatchMouseEvent", { type: "mouseMoved", x, y });
+    await sendPage("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", clickCount: 1 });
+    await sendPage("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", clickCount: 1 });
+    console.log("[x-publisher] Clicked initial publish button via CDP physical mouse");
+  }
+  await new Promise(r => setTimeout(r, 2500));
 
-  // Step 7: Fill Caption in Dialog & Confirm Publish
-  const pubRes = await sendPage("Runtime.evaluate", {
+  // Step 7: Fill Caption in Dialog & Confirm Publish via CDP physical mouse
+  await sendPage("Runtime.evaluate", {
     expression: `(async () => {
       let dialog = null;
       for (let i = 0; i < 15; i++) {
@@ -333,18 +374,8 @@ try {
           return text.includes('发布文章') || text.includes('Publish article') || text.includes('Publish Article') || text.includes('说明文字');
         });
         if (dialog) break;
-
-        // Retry clicking initial publish button if dialog hasn't opened yet
-        const publishBtn = Array.from(document.querySelectorAll('button, [role="button"]')).find(b => {
-          const t = (b.innerText || b.textContent || '').trim();
-          return t === '发布' || t === 'Publish';
-        });
-        if (publishBtn && publishBtn.getAttribute('aria-disabled') !== 'true') {
-          try { publishBtn.click(); } catch {}
-        }
         await new Promise(r => setTimeout(r, 1000));
       }
-
       if (!dialog) return { error: 'no_dialog' };
 
       const captionEl = dialog.querySelector('textarea');
@@ -354,27 +385,51 @@ try {
         captionEl.dispatchEvent(new Event('input', { bubbles: true }));
         captionEl.dispatchEvent(new Event('change', { bubbles: true }));
       }
-      await new Promise(r => setTimeout(r, 1500));
+      return { ready: true };
+    })()`,
+    awaitPromise: true,
+    returnByValue: true
+  });
+  await new Promise(r => setTimeout(r, 1500));
 
-      const confirmBtn = Array.from(dialog.querySelectorAll('button, [role="button"]')).find(b => {
+  // Physically click the final confirm button inside the dialog
+  const confCoord = await sendPage("Runtime.evaluate", {
+    expression: `(() => {
+      const dialog = Array.from(document.querySelectorAll('[role="dialog"]')).find(d => {
+        const text = (d.innerText || d.textContent || '');
+        return text.includes('发布文章') || text.includes('Publish article') || text.includes('Publish Article') || text.includes('说明文字');
+      });
+      if (!dialog) return null;
+      const btn = Array.from(dialog.querySelectorAll('button, [role="button"]')).find(b => {
         const t = (b.innerText || b.textContent || '').trim();
         return t === '发布' || t === 'Publish';
       });
-      if (confirmBtn) confirmBtn.click();
+      if (!btn) return null;
+      const r = btn.getBoundingClientRect();
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    })()`,
+    returnByValue: true
+  });
 
-      // Wait up to 15 seconds for navigation or publish completion
-      for (let i = 0; i < 15; i++) {
-        await new Promise(r => setTimeout(r, 1000));
-        if (location.href.includes('/status/')) break;
-      }
+  if (confCoord.result.value) {
+    const { x, y } = confCoord.result.value;
+    await sendPage("Input.dispatchMouseEvent", { type: "mouseMoved", x, y });
+    await sendPage("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", clickCount: 1 });
+    await sendPage("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", clickCount: 1 });
+    console.log("[x-publisher] Clicked dialog confirm publish button via CDP physical mouse");
+  }
 
+  // Wait for publish completion
+  await new Promise(r => setTimeout(r, 8000));
+
+  const pubRes = await sendPage("Runtime.evaluate", {
+    expression: `(() => {
       return {
         url: location.href,
-        success: location.href.includes('/status/'),
+        hasStatus: location.href.includes('/status/'),
         titleInPage: (document.body.innerText || '').includes(${JSON.stringify(title)})
       };
     })()`,
-    awaitPromise: true,
     returnByValue: true
   });
 
