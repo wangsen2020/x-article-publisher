@@ -40,9 +40,11 @@
 ## 📸 实战案例与避坑指南 (Real-world Pitfalls & Showcase)
 
 ### 1. 真实发布案例 (Live Examples)
-由本工具全自动排版并发布的真实案例推文：
-- 🇨🇳 中文专栏：👉 **[解救被困在手机里的 WhatsApp 记录](https://x.com/WatsonTaylor23/status/2114642635419980167)**
-- 🇬🇧 英文专栏：👉 **[The Illusion of Data Ownership: Reclaiming Your WhatsApp Chats](https://x.com/WatsonTaylor23/status/2114655202594714007)**
+由本工具全自动排版并发布的四语种真实案例推文：
+- 🇨🇳 **中文版**：👉 **[解救被困在手机里的 WhatsApp 记录](https://x.com/WatsonTaylor23/status/2114642635419980167)**
+- 🇬🇧 **英文版**：👉 **[The Illusion of Data Ownership: Reclaiming Your WhatsApp Chats](https://x.com/WatsonTaylor23/status/2114655202594714007)**
+- 🇧🇷 **巴西葡语版**：👉 **[Soberania no WhatsApp: Exporte Chats para HTML, PDF e Excel](https://x.com/WatsonTaylor23/status/2114656005028249691)**
+- 🇪🇸 **拉美西语版**：👉 **[Soberanía de Datos: Exporta tus Chats a HTML, PDF y Excel](https://x.com/WatsonTaylor23/status/2114656198347866592)**
 
 ![Example Cover](assets/example-cover-5x2.png)
 
