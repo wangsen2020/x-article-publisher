@@ -28,6 +28,11 @@ node "./scripts/publish-article.mjs" `
   --caption "推文摘要/说明文案 + #标签"
 ```
 
+### 批量清理无用草稿：
+```powershell
+node "./scripts/clean-drafts.mjs" [--max 20] [--keep 0]
+```
+
 ### 参数说明：
 - `--title` (必填): 文章主标题。
 - `--bodyFile` (必填/或 `--body`): 包含完整富文本 HTML 的文件路径（`<p>`, `<h2>`, `<ul>`, `<li>`, `<strong>`）。

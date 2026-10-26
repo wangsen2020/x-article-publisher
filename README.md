@@ -128,6 +128,22 @@ node scripts/publish-article.mjs \
 
 ---
 
+### 3. 一键批量清理无用草稿 (Draft Cleaner)
+
+自动化发文或调试过程中，X Articles 草稿箱常常会残留大量未命名的废弃空白草稿。本项目自带独立的草稿清理工具：
+
+```bash
+# 清空所有测试/未发布草稿
+npm run clean
+# 或使用完整参数控制：
+node scripts/clean-drafts.mjs --max 20 --keep 0
+```
+- `--keep <N>`：保留最新的 N 条草稿，清理其余较旧草稿；
+- `--max <N>`：单次清理上限，防止误伤。
+- 自动处理多级菜单点击与红色高危确认弹窗（“是的，删除”）。
+
+---
+
 ## 🤖 作为 AI Agent Skill 接入
 
 如果你使用 **Antigravity** 或 **Codex**：

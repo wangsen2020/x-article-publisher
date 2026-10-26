@@ -5,9 +5,11 @@
   "type": "module",
   "main": "scripts/publish-article.mjs",
   "bin": {
-    "x-publish": "scripts/publish-article.mjs"
+    "x-publish": "scripts/publish-article.mjs",
+    "x-clean": "scripts/clean-drafts.mjs"
   },
   "scripts": {
+    "clean": "node scripts/clean-drafts.mjs",
     "test": "node scripts/publish-article.mjs --help"
   },
   "keywords": [
